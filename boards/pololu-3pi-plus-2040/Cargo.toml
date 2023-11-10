@@ -1,10 +1,9 @@
 [package]
-name = "pimoroni-pico-explorer"
-version = "0.7.0"
-authors = ["Hmvp <hmvp@users.noreply.github.com>", "The rp-rs Developers"]
+name = "pololu-3pi-plus-2040"
+version = "0.8.0"
+authors = ["evan <evanmolder@gmail.com>", "The rp-rs Developers"]
 edition = "2018"
-homepage = "https://github.com/rp-rs/rp-hal-boards/tree/main/boards/pimoroni-pico-explorer"
-description = "Board Support Package for the Pico Explorer"
+description = "Board Support Package for the Raspberry Pi Pico"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/rp-rs/rp-hal-boards.git"
 
@@ -12,20 +11,37 @@ repository = "https://github.com/rp-rs/rp-hal-boards.git"
 
 [dependencies]
 cortex-m-rt = { workspace = true, optional = true }
-display-interface-spi.workspace = true
-embedded-graphics.workspace = true
-embedded-hal = { workspace = true, features = ["unproven"] }
+embedded-hal = "0.2.7"
 fugit.workspace = true
 rp2040-boot2 = { workspace = true, optional = true }
 rp2040-hal.workspace = true
-st7789 = { git = "https://github.com/SCingolani/st7789.git" }
+sh1106 = { git = "https://github.com/SCingolani/sh1106", features=["graphics"]}
+apa102-spi = { git = "https://github.com/SCingolani/apa102-spi-rs" }
+usb-device.workspace = true
 
 [dev-dependencies]
-arrayvec.workspace = true
 cortex-m.workspace = true
-display-interface.workspace = true
+cortex-m-rtic.workspace = true
+critical-section.workspace = true
+embedded-graphics.workspace = true
+embedded-hal.workspace = true
+embedded-sdmmc.workspace = true
+hd44780-driver.workspace = true
+heapless.workspace = true
+i2c-pio.workspace = true
 nb.workspace = true
 panic-halt.workspace = true
+pio.workspace = true
+pio-proc.workspace = true
+rp2040-hal = { workspace = true, features = [ "defmt" ] }
+smart-leds.workspace = true
+ssd1306.workspace = true
+usbd-hid.workspace = true
+usbd-serial.workspace = true
+ws2812-pio.workspace = true
+
+defmt.workspace = true
+defmt-rtt.workspace = true
 
 [features]
 # This is the set of features we enable by default
@@ -38,7 +54,7 @@ critical-section-impl = ["rp2040-hal/critical-section-impl"]
 boot2 = ["rp2040-boot2"]
 
 # Minimal startup / runtime for Cortex-M microcontrollers
-rt = ["cortex-m-rt", "rp2040-hal/rt"]
+rt = ["cortex-m-rt","rp2040-hal/rt"]
 
 # This enables a fix for USB errata 5: USB device fails to exit RESET state on busy USB bus.
 # Only required for RP2040 B0 and RP2040 B1, but it also works for RP2040 B2 and above
