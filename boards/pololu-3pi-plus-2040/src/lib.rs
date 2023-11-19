@@ -42,6 +42,7 @@ pub extern crate rp2040_hal as hal;
 extern crate cortex_m_rt;
 
 use embedded_hal::blocking::delay::DelayMs;
+use fugit::HertzU32;
 /// The `entry` macro declares the starting function to the linker.
 /// This is similar to the `main` function in console applications.
 ///
@@ -60,6 +61,7 @@ use embedded_hal::blocking::delay::DelayMs;
 
 #[cfg(feature = "rt")]
 pub use hal::entry;
+use hal::{pac::I2C0, I2C};
 
 /// The linker will place this boot block at the start of our program image. We
 /// need this to help the ROM bootloader get our code up and running.
@@ -70,6 +72,8 @@ pub use hal::entry;
 pub static BOOT2_FIRMWARE: [u8; 256] = rp2040_boot2::BOOT_LOADER_W25Q080;
 
 pub use hal::pac;
+use lis3mdl::Lis3mdl;
+use lsm6dso::Lsm6dso;
 use visual_output::VisualOutput;
 
 hal::bsp_pins!(
@@ -114,59 +118,21 @@ hal::bsp_pins!(
         }
     },
 
-    /// GPIO 4 supports following functions:
-    ///
-    /// | Function     | Alias with applied function |
-    /// |--------------|-----------------------------|
-    /// | `SPI0 RX`    | [crate::Gp4Spi0Rx]          |
-    /// | `UART1 TX`   | [crate::Gp4Uart1Tx]         |
-    /// | `I2C0 SDA`   | [crate::Gp4I2C0Sda]         |
-    /// | `PWM2 A`     | [crate::Gp4Pwm2A]           |
-    /// | `PIO0`       | [crate::Gp4Pio0]            |
-    /// | `PIO1`       | [crate::Gp4Pio1]            |
+    /// GPIO 4 is connected to the inertial sensors through I2C0.
     Gpio4 {
         name: gpio4,
         aliases: {
-            /// UART Function alias for pin [crate::Pins::gpio4].
-            FunctionUart, PullNone: Gp4Uart1Tx,
-            /// SPI Function alias for pin [crate::Pins::gpio4].
-            FunctionSpi, PullNone: Gp4Spi0Rx,
             /// I2C Function alias for pin [crate::Pins::gpio4].
-            FunctionI2C, PullUp: Gp4I2C0Sda,
-            /// PWM Function alias for pin [crate::Pins::gpio4].
-            FunctionPwm, PullNone: Gp4Pwm2A,
-            /// PIO0 Function alias for pin [crate::Pins::gpio4].
-            FunctionPio0, PullNone: Gp4Pio0,
-            /// PIO1 Function alias for pin [crate::Pins::gpio4].
-            FunctionPio1, PullNone: Gp4Pio1
+            FunctionI2C, PullUp: InertialSda
         }
     },
 
-    /// GPIO 5 supports following functions:
-    ///
-    /// | Function     | Alias with applied function |
-    /// |--------------|-----------------------------|
-    /// | `SPI0 CSn`   | [crate::Gp5Spi0Csn]         |
-    /// | `UART1 RX`   | [crate::Gp5Uart1Rx]         |
-    /// | `I2C0 SCL`   | [crate::Gp5I2C0Scl]         |
-    /// | `PWM2 B`     | [crate::Gp5Pwm2B]           |
-    /// | `PIO0`       | [crate::Gp5Pio0]            |
-    /// | `PIO1`       | [crate::Gp5Pio1]            |
+    /// GPIO 5 is connected to the inertial sensors through I2C0.
     Gpio5 {
         name: gpio5,
         aliases: {
-            /// UART Function alias for pin [crate::Pins::gpio5].
-            FunctionUart, PullNone: Gp5Uart1Rx,
-            /// SPI Function alias for pin [crate::Pins::gpio5].
-            FunctionSpi, PullNone: Gp5Spi0Csn,
             /// I2C Function alias for pin [crate::Pins::gpio5].
-            FunctionI2C, PullUp: Gp5I2C0Scl,
-            /// PWM Function alias for pin [crate::Pins::gpio5].
-            FunctionPwm, PullNone: Gp5Pwm2B,
-            /// PIO0 Function alias for pin [crate::Pins::gpio5].
-            FunctionPio0, PullNone: Gp5Pio0,
-            /// PIO1 Function alias for pin [crate::Pins::gpio5].
-            FunctionPio1, PullNone: Gp5Pio1
+            FunctionI2C, PullUp: InertialScl
         }
     },
 
@@ -735,19 +701,39 @@ hal::bsp_pins!(
 
 pub const XOSC_CRYSTAL_FREQ: u32 = 12_000_000;
 
-pub struct ThreePiPlus2040 {
+pub struct ThreePiPlus2040<'a> {
     pub visual_output: VisualOutput,
+    pub magnetometer: Lis3mdl<I2CProxy<'a>>,
+    pub accelerometer: Lsm6dso<I2CProxy<'a>>,
+    pub i2c0bus: &'static shared_bus::BusManagerCortexM<ConfiguredI2C0>,
 }
 
-impl ThreePiPlus2040 {
-    pub fn new<Delay: DelayMs<u8>>(
+type ConfiguredI2C0 = I2C<
+    I2C0,
+    (
+        hal::gpio::Pin<hal::gpio::bank0::Gpio4, hal::gpio::FunctionI2c, hal::gpio::PullUp>,
+        hal::gpio::Pin<hal::gpio::bank0::Gpio5, hal::gpio::FunctionI2c, hal::gpio::PullUp>,
+    ),
+>;
+type I2CProxy<'a> = shared_bus::I2cProxy<'a, shared_bus::CortexMMutex<ConfiguredI2C0>>;
+
+impl ThreePiPlus2040<'_> {
+    pub fn new<Delay, F, SystemF>(
         io: pac::IO_BANK0,
         pads: pac::PADS_BANK0,
         sio: hal::sio::SioGpioBank0,
         spi0: pac::SPI0,
+        i2c0: pac::I2C0,
+        freq: F,
+        system_clock: SystemF,
         resets: &mut pac::RESETS,
         delay: &mut Delay,
-    ) -> Self {
+    ) -> Self
+    where
+        Delay: DelayMs<u8>,
+        F: Into<HertzU32>,
+        SystemF: Into<HertzU32>,
+    {
         let internal_pins = Pins::new(io, pads, sio, resets);
         let visual_output = VisualOutput::new(
             spi0,
@@ -760,7 +746,26 @@ impl ThreePiPlus2040 {
             delay,
         );
 
-        Self { visual_output }
+        let i2c = I2C::i2c0(
+            i2c0,
+            internal_pins.gpio4.reconfigure(),
+            internal_pins.gpio5.reconfigure(),
+            freq,
+            resets,
+            system_clock,
+        );
+        let i2c0_bus_manager: &'static _ = shared_bus::new_cortexm!(ConfiguredI2C0 = i2c).unwrap();
+
+        let lis3mdl =
+            Lis3mdl::new(i2c0_bus_manager.acquire_i2c(), lis3mdl::Address::Addr1E).unwrap();
+        let lsm6dso = Lsm6dso::new(i2c0_bus_manager.acquire_i2c(), 107).unwrap();
+
+        Self {
+            visual_output,
+            magnetometer: lis3mdl,
+            accelerometer: lsm6dso,
+            i2c0bus: i2c0_bus_manager,
+        }
     }
 
     pub fn is_button_c_pressed(&mut self) -> bool {

@@ -12,7 +12,9 @@
 
 use fugit::ExtU32;
 use fugit::MicrosDurationU32;
+use fugit::RateExtU32;
 use hal::timer::Instant;
+
 // Shorten the name of our board support package
 use pololu_3pi_plus_2040 as pololu;
 
@@ -98,6 +100,9 @@ fn main() -> ! {
         pac.PADS_BANK0,
         sio.gpio_bank0,
         pac.SPI0,
+        pac.I2C0,
+        400_u32.kHz(),
+        clocks.system_clock.freq(),
         &mut pac.RESETS,
         &mut delay,
     );
