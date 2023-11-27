@@ -100,6 +100,7 @@ fn main() -> ! {
         sio.gpio_bank0,
         pac.SPI0,
         pac.I2C0,
+        pac.PIO0,
         400_u32.kHz(),
         clocks.system_clock.freq(),
         &mut pac.RESETS,

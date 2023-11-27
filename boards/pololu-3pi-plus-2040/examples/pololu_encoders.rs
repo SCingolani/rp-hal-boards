@@ -10,10 +10,8 @@
 #![no_std]
 #![no_main]
 
-use fugit::ExtU32;
 use fugit::MicrosDurationU32;
 use fugit::RateExtU32;
-use hal::timer::Instant;
 
 // Shorten the name of our board support package
 use pololu_3pi_plus_2040 as pololu;
@@ -38,11 +36,6 @@ use pololu::hal;
 
 // We will use some timers to have cyclic tasks on our main loop
 use embedded_hal::timer::CountDown;
-
-// Abstraction to use RGB leds
-use smart_leds::brightness;
-use smart_leds::hsv::Hsv;
-use smart_leds::{gamma, hsv::hsv2rgb, SmartLedsWrite, RGB8};
 
 // Abstraction to display graphics and text
 use embedded_graphics::{
@@ -114,91 +107,46 @@ fn main() -> ! {
     // We can have as many `CountDown`s as we want with one timer.
     let timer = hal::Timer::new(pac.TIMER, &mut pac.RESETS, &clocks);
     let mut display_refresh_countdown = timer.count_down();
-    let mut led_refresh_countdown = timer.count_down();
 
     // Two ways of creating duration constants:
-    display_refresh_countdown.start(MicrosDurationU32::millis(500));
-    led_refresh_countdown.start(1000u32.micros());
+    display_refresh_countdown.start(MicrosDurationU32::millis(1));
 
-    // Some state to do a nice animation with the LEDs
-    let mut led_state = LedState::default();
-
+    let display = mouse.visual_output.as_display(&mut pac.RESETS);
+    let mut encoder_measurement_right_last = 0;
+    let mut encoder_measurement_left_last = 0;
     loop {
-        let now = timer.get_counter();
-
         if display_refresh_countdown.wait().is_ok() {
-            // Get a reference to the Display driver; it is mutually exclusive with the RGB LED!
-            // Switching from Display to RGB and vice versa incurs a small cost
-            let display = mouse.visual_output.as_display(&mut pac.RESETS);
+            let mut encoder_measurement_right = 0;
+            // empty the FIFO
+            while let Some(encoder_value) = mouse.encoder_right.read() {
+                encoder_measurement_right = encoder_value as i32;
+            }
+            let mut encoder_measurement_left = 0;
+            // empty the FIFO
+            while let Some(encoder_value) = mouse.encoder_left.read() {
+                encoder_measurement_left = encoder_value as i32;
+            }
 
-            // Clear the internal buffer (does nothing to the display yet)
-            display.clear();
-
-            // Create a text at position (20, 30) and draw it using the previously defined style
-            let mut text = heapless::String::<64>::new();
-            write!(text, "Hellow from rust!\nnow: {}", now).unwrap();
-            Text::new(&text, Point::new(0, 32), style)
-                .draw(display)
+            if encoder_measurement_right_last != encoder_measurement_right
+                || encoder_measurement_left_last != encoder_measurement_left
+            {
+                encoder_measurement_right_last = encoder_measurement_right;
+                encoder_measurement_left_last = encoder_measurement_left;
+                // Clear the internal buffer (does nothing to the display yet)
+                display.clear();
+                // Create a text at position (20, 30) and draw it using the previously defined style
+                let mut text = heapless::String::<64>::new();
+                write!(
+                    text,
+                    "Encoder right: {}\nEncoder left:  {}",
+                    encoder_measurement_right, encoder_measurement_left,
+                )
                 .unwrap();
+                Text::new(&text, Point::new(0, 32), style)
+                    .draw(display)
+                    .unwrap();
 
-            display.flush().unwrap();
-        }
-
-        if led_refresh_countdown.wait().is_ok() {
-            let color: RGB8 = hsv2rgb(Hsv {
-                hue: led_state.hue,
-                sat: 255,
-                val: 255,
-            });
-
-            let colors = led_state.brightness.map(|brightness| {
-                let brightness = (brightness / 256).clamp(256 / 3, 255);
-                RGB8 {
-                    r: (color.r as u16 * (brightness + 1) / 256) as u8,
-                    g: (color.g as u16 * (brightness + 1) / 256) as u8,
-                    b: (color.b as u16 * (brightness + 1) / 256) as u8,
-                }
-            });
-
-            // Get a reference to the RGB Led driver; it is mutually exclusive with the  Display!
-            // Switching from Display to RGB and vice versa incurs a small cost
-            let rgbleds = mouse.visual_output.as_rgbled(&mut pac.RESETS);
-
-            // write out the colors, with a scaled down brightness (the LEDs are very bright!) and gamma corrected
-            rgbleds
-                .write(gamma(brightness(colors.iter().cloned(), 255 / 4 * 3)))
-                .unwrap();
-
-            led_state.update(now);
-        }
-    }
-}
-
-/// Little animation for the LEDs
-#[derive(Default)]
-struct LedState {
-    /// Hue of the next color
-    hue: u8,
-    brightness: [u16; 6],
-    counter: u8,
-}
-
-impl LedState {
-    fn update(&mut self, now: Instant) {
-        const ONE_SECOND_IN_MICROS: u64 = 1_000_000;
-        // change the color
-        self.counter = self.counter.wrapping_add(1);
-        if self.counter == 0 {
-            self.hue = self.hue.wrapping_add(1);
-        }
-        // change highlighted LED every 1/6 of a second.
-        let hightlight_led_index = (now.duration_since_epoch().to_micros() % ONE_SECOND_IN_MICROS
-            / (ONE_SECOND_IN_MICROS / 6)) as usize;
-        for (i, b) in self.brightness.iter_mut().enumerate() {
-            if i == hightlight_led_index {
-                *b = u16::MAX
-            } else {
-                *b = b.saturating_sub(u16::MAX / (100 * 166 / 20))
+                display.flush().unwrap();
             }
         }
     }

@@ -61,7 +61,11 @@ use fugit::HertzU32;
 
 #[cfg(feature = "rt")]
 pub use hal::entry;
-use hal::{pac::I2C0, I2C};
+use hal::{
+    pac::I2C0,
+    pio::{PIOExt, Rx, UninitStateMachine},
+    I2C,
+};
 
 /// The linker will place this boot block at the start of our program image. We
 /// need this to help the ROM bootloader get our code up and running.
@@ -174,59 +178,21 @@ hal::bsp_pins!(
         }
     },
 
-    /// GPIO 8 supports following functions:
-    ///
-    /// | Function     | Alias with applied function |
-    /// |--------------|-----------------------------|
-    /// | `SPI1 RX`    | [crate::Gp8Spi1Rx]          |
-    /// | `UART1 TX`   | [crate::Gp8Uart1Tx]         |
-    /// | `I2C0 SDA`   | [crate::Gp8I2C0Sda]         |
-    /// | `PWM4 A`     | [crate::Gp8Pwm4A]           |
-    /// | `PIO0`       | [crate::Gp8Pio0]            |
-    /// | `PIO1`       | [crate::Gp8Pio1]            |
+    /// GPIO 8 is connected to the right encoder
     Gpio8 {
         name: gpio8,
         aliases: {
-            /// UART Function alias for pin [crate::Pins::gpio8].
-            FunctionUart, PullNone: Gp8Uart1Tx,
-            /// SPI Function alias for pin [crate::Pins::gpio8].
-            FunctionSpi, PullNone: Gp8Spi1Rx,
-            /// I2C Function alias for pin [crate::Pins::gpio8].
-            FunctionI2C, PullUp: Gp8I2C0Sda,
-            /// PWM Function alias for pin [crate::Pins::gpio8].
-            FunctionPwm, PullNone: Gp8Pwm4A,
             /// PIO0 Function alias for pin [crate::Pins::gpio8].
-            FunctionPio0, PullNone: Gp8Pio0,
-            /// PIO1 Function alias for pin [crate::Pins::gpio8].
-            FunctionPio1, PullNone: Gp8Pio1
+            FunctionPio0, PullNone: EncoderRightA
         }
     },
 
-    /// GPIO 9 supports following functions:
-    ///
-    /// | Function     | Alias with applied function |
-    /// |--------------|-----------------------------|
-    /// | `SPI1 CSn`   | [crate::Gp9Spi1Csn]         |
-    /// | `UART1 RX`   | [crate::Gp9Uart1Rx]         |
-    /// | `I2C0 SCL`   | [crate::Gp9I2C0Scl]         |
-    /// | `PWM4 B`     | [crate::Gp9Pwm4B]           |
-    /// | `PIO0`       | [crate::Gp9Pio0]            |
-    /// | `PIO1`       | [crate::Gp9Pio1]            |
+    /// GPIO 9 is connected to the right encoder
     Gpio9 {
         name: gpio9,
         aliases: {
-            /// UART Function alias for pin [crate::Pins::gpio9].
-            FunctionUart, PullNone: Gp9Uart1Rx,
-            /// SPI Function alias for pin [crate::Pins::gpio9].
-            FunctionSpi, PullNone: Gp9Spi1Csn,
-            /// I2C Function alias for pin [crate::Pins::gpio9].
-            FunctionI2C, PullUp: Gp9I2C0Scl,
-            /// PWM Function alias for pin [crate::Pins::gpio9].
-            FunctionPwm, PullNone: Gp9Pwm4B,
             /// PIO0 Function alias for pin [crate::Pins::gpio9].
-            FunctionPio0, PullNone: Gp9Pio0,
-            /// PIO1 Function alias for pin [crate::Pins::gpio9].
-            FunctionPio1, PullNone: Gp9Pio1
+            FunctionPio0, PullNone: EncoderRightB
         }
     },
 
@@ -286,59 +252,21 @@ hal::bsp_pins!(
         }
     },
 
-    /// GPIO 12 supports following functions:
-    ///
-    /// | Function     | Alias with applied function |
-    /// |--------------|-----------------------------|
-    /// | `SPI1 RX`    | [crate::Gp12Spi1Rx]         |
-    /// | `UART0 TX`   | [crate::Gp12Uart0Tx]        |
-    /// | `I2C0 SDA`   | [crate::Gp12I2C0Sda]        |
-    /// | `PWM6 A`     | [crate::Gp12Pwm6A]          |
-    /// | `PIO0`       | [crate::Gp12Pio0]           |
-    /// | `PIO1`       | [crate::Gp12Pio1]           |
+    /// GPIO 12 is connected to the left encoder
     Gpio12 {
         name: gpio12,
         aliases: {
-            /// UART Function alias for pin [crate::Pins::gpio12].
-            FunctionUart, PullNone: Gp12Uart0Tx,
-            /// SPI Function alias for pin [crate::Pins::gpio12].
-            FunctionSpi, PullNone: Gp12Spi1Rx,
-            /// I2C Function alias for pin [crate::Pins::gpio12].
-            FunctionI2C, PullUp: Gp12I2C0Sda,
-            /// PWM Function alias for pin [crate::Pins::gpio12].
-            FunctionPwm, PullNone: Gp12Pwm6A,
             /// PIO0 Function alias for pin [crate::Pins::gpio12].
-            FunctionPio0, PullNone: Gp12Pio0,
-            /// PIO1 Function alias for pin [crate::Pins::gpio12].
-            FunctionPio1, PullNone: Gp12Pio1
+            FunctionPio0, PullNone: EncoderLeftA
         }
     },
 
-    /// GPIO 13 supports following functions:
-    ///
-    /// | Function     | Alias with applied function |
-    /// |--------------|-----------------------------|
-    /// | `SPI1 CSn`   | [crate::Gp13Spi1Csn]        |
-    /// | `UART0 RX`   | [crate::Gp13Uart0Rx]        |
-    /// | `I2C0 SCL`   | [crate::Gp13I2C0Scl]        |
-    /// | `PWM6 B`     | [crate::Gp13Pwm6B]          |
-    /// | `PIO0`       | [crate::Gp13Pio0]           |
-    /// | `PIO1`       | [crate::Gp13Pio1]           |
+    /// GPIO 13 is connected to the left encoder
     Gpio13 {
         name: gpio13,
         aliases: {
-            /// UART Function alias for pin [crate::Pins::gpio13].
-            FunctionUart, PullNone: Gp13Uart0Rx,
-            /// SPI Function alias for pin [crate::Pins::gpio13].
-            FunctionSpi, PullNone: Gp13Spi1Csn,
-            /// I2C Function alias for pin [crate::Pins::gpio13].
-            FunctionI2C, PullUp: Gp13I2C0Scl,
-            /// PWM Function alias for pin [crate::Pins::gpio13].
-            FunctionPwm, PullNone: Gp13Pwm6B,
             /// PIO0 Function alias for pin [crate::Pins::gpio13].
-            FunctionPio0, PullNone: Gp13Pio0,
-            /// PIO1 Function alias for pin [crate::Pins::gpio13].
-            FunctionPio1, PullNone: Gp13Pio1
+            FunctionPio0, PullNone: EncoderLeftB
         }
     },
 
@@ -706,6 +634,8 @@ pub struct ThreePiPlus2040<'a> {
     pub magnetometer: Lis3mdl<I2CProxy<'a>>,
     pub accelerometer: Lsm6dso<I2CProxy<'a>>,
     pub i2c0bus: &'static shared_bus::BusManagerCortexM<ConfiguredI2C0>,
+    pub encoder_right: Rx<(pac::PIO0, hal::pio::SM0)>,
+    pub encoder_left: Rx<(pac::PIO0, hal::pio::SM1)>,
 }
 
 type ConfiguredI2C0 = I2C<
@@ -724,6 +654,7 @@ impl ThreePiPlus2040<'_> {
         sio: hal::sio::SioGpioBank0,
         spi0: pac::SPI0,
         i2c0: pac::I2C0,
+        pio0: pac::PIO0,
         freq: F,
         system_clock: SystemF,
         resets: &mut pac::RESETS,
@@ -760,15 +691,61 @@ impl ThreePiPlus2040<'_> {
             Lis3mdl::new(i2c0_bus_manager.acquire_i2c(), lis3mdl::Address::Addr1E).unwrap();
         let lsm6dso = Lsm6dso::new(i2c0_bus_manager.acquire_i2c(), 107).unwrap();
 
+        // Set PIO for encoders
+        let encoder_program = pio_proc::pio_file!("src/quadrature_encoder.pio");
+
+        // Initialize and start PIO
+        let (mut pio, sm0, sm1, _, _) = pio0.split(resets);
+        let installed = pio.install(&encoder_program.program).unwrap();
+
+        let (encoder_right_a, _encoder_right_b): (EncoderRightA, EncoderRightB) = (
+            internal_pins.gpio8.reconfigure(),
+            internal_pins.gpio9.reconfigure(),
+        );
+        let encoder_right =
+            init_encoder_pio(encoder_right_a.id().num, sm0, unsafe { installed.share() });
+
+        let (encoder_left_a, _encoder_left_b): (EncoderLeftA, EncoderLeftB) = (
+            internal_pins.gpio12.reconfigure(),
+            internal_pins.gpio13.reconfigure(),
+        );
+        let encoder_left = init_encoder_pio(encoder_left_a.id().num, sm1, installed);
+
         Self {
             visual_output,
             magnetometer: lis3mdl,
             accelerometer: lsm6dso,
             i2c0bus: i2c0_bus_manager,
+            encoder_right,
+            encoder_left,
         }
     }
 
     pub fn is_button_c_pressed(&mut self) -> bool {
         self.visual_output.read_gpio0()
     }
+}
+
+fn init_encoder_pio<T: hal::pio::StateMachineIndex>(
+    pin_number: u8,
+    sm: UninitStateMachine<(pac::PIO0, T)>,
+    installed: hal::pio::InstalledProgram<pac::PIO0>,
+) -> Rx<(pac::PIO0, T)> {
+    let (mut sm, rx, _) = rp2040_hal::pio::PIOBuilder::from_program(installed)
+        .in_shift_direction(hal::pio::ShiftDirection::Left)
+        .out_shift_direction(hal::pio::ShiftDirection::Right)
+        .jmp_pin(pin_number)
+        .in_pin_base(pin_number)
+        .clock_divisor_fixed_point(16, 0)
+        .autopull(false)
+        .autopush(false)
+        .build(sm);
+
+    sm.set_pindirs([
+        (pin_number, hal::pio::PinDir::Input),
+        (pin_number + 1, hal::pio::PinDir::Input),
+    ]);
+
+    sm.start();
+    rx
 }

@@ -21,6 +21,8 @@ usb-device.workspace = true
 lis3mdl = { git = "https://github.com/ryanrightmer/lis3mdl" }
 shared-bus = { version = "0.3.1", features = ["cortex-m"] }
 lsm6dso = "0.1.0"
+pio.workspace = true
+pio-proc.workspace = true
 
 [dev-dependencies]
 cortex-m.workspace = true
@@ -34,8 +36,6 @@ heapless.workspace = true
 i2c-pio.workspace = true
 nb.workspace = true
 panic-halt.workspace = true
-pio.workspace = true
-pio-proc.workspace = true
 rp2040-hal = { workspace = true, features = [ "defmt" ] }
 smart-leds.workspace = true
 ssd1306.workspace = true
