@@ -42,6 +42,7 @@ ssd1306.workspace = true
 usbd-hid.workspace = true
 usbd-serial.workspace = true
 ws2812-pio.workspace = true
+vl6180x = {git = "https://github.com/lucazulian/vl6180x" }
 
 defmt.workspace = true
 defmt-rtt.workspace = true
