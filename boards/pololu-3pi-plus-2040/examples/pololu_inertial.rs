@@ -111,6 +111,7 @@ fn main() -> ! {
         pac.SPI0,
         pac.I2C0,
         pac.PIO0,
+        pac.PIO1,
         400_u32.kHz(),
         clocks.system_clock.freq(),
         &mut pac.RESETS,

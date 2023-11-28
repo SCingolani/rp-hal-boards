@@ -34,15 +34,16 @@
 //! }
 //! ```
 
-pub mod visual_output;
 pub mod buzzer;
+pub mod ir_sensors;
+pub mod visual_output;
 
 pub extern crate rp2040_hal as hal;
 
 #[cfg(feature = "rt")]
 extern crate cortex_m_rt;
 
-use embedded_hal::blocking::delay::DelayMs;
+use embedded_hal::{blocking::delay::DelayMs, digital::v2::OutputPin};
 use fugit::HertzU32;
 /// The `entry` macro declares the starting function to the linker.
 /// This is similar to the `main` function in console applications.
@@ -77,6 +78,7 @@ use hal::{
 pub static BOOT2_FIRMWARE: [u8; 256] = rp2040_boot2::BOOT_LOADER_W25Q080;
 
 pub use hal::pac;
+use ir_sensors::IrSensors;
 use lis3mdl::Lis3mdl;
 use lsm6dso::Lsm6dso;
 use visual_output::VisualOutput;
@@ -364,149 +366,57 @@ hal::bsp_pins!(
         }
     },
 
-    /// GPIO 18 supports following functions:
-    ///
-    /// | Function     | Alias with applied function |
-    /// |--------------|-----------------------------|
-    /// | `SPI0 SCK`   | [crate::Gp18Spi0Sck]        |
-    /// | `UART0 CTS`  | [crate::Gp18Uart0Cts]       |
-    /// | `I2C1 SDA`   | [crate::Gp18I2C1Sda]        |
-    /// | `PWM1 A`     | [crate::Gp18Pwm1A]          |
-    /// | `PIO0`       | [crate::Gp18Pio0]           |
-    /// | `PIO1`       | [crate::Gp18Pio1]           |
+    /// GPIO 18 is connected to Line sensor 5 (DN5, rightmost)
     Gpio18 {
         name: gpio18,
         aliases: {
-            /// UART Function alias for pin [crate::Pins::gpio18].
-            FunctionUart, PullNone: Gp18Uart0Cts,
-            /// SPI Function alias for pin [crate::Pins::gpio18].
-            FunctionSpi, PullNone: Gp18Spi0Sck,
-            /// I2C Function alias for pin [crate::Pins::gpio18].
-            FunctionI2C, PullUp: Gp18I2C1Sda,
-            /// PWM Function alias for pin [crate::Pins::gpio18].
-            FunctionPwm, PullNone: Gp18Pwm1A,
-            /// PIO0 Function alias for pin [crate::Pins::gpio18].
-            FunctionPio0, PullNone: Gp18Pio0,
             /// PIO1 Function alias for pin [crate::Pins::gpio18].
-            FunctionPio1, PullNone: Gp18Pio1
+            FunctionPio1, PullNone: DN5
         }
     },
 
-    /// GPIO 19 supports following functions:
-    ///
-    /// | Function     | Alias with applied function |
-    /// |--------------|-----------------------------|
-    /// | `SPI0 TX`    | [crate::Gp19Spi0Tx]         |
-    /// | `UART0 RTS`  | [crate::Gp19Uart0Rts]       |
-    /// | `I2C1 SCL`   | [crate::Gp19I2C1Scl]        |
-    /// | `PWM1 B`     | [crate::Gp19Pwm1B]          |
-    /// | `PIO0`       | [crate::Gp19Pio0]           |
-    /// | `PIO1`       | [crate::Gp19Pio1]           |
+    /// GPIO 19 is connected to Line sensor 4 (DN4)
     Gpio19 {
         name: gpio19,
         aliases: {
-            /// UART Function alias for pin [crate::Pins::gpio19].
-            FunctionUart, PullNone: Gp19Uart0Rts,
-            /// SPI Function alias for pin [crate::Pins::gpio19].
-            FunctionSpi, PullNone: Gp19Spi0Tx,
-            /// I2C Function alias for pin [crate::Pins::gpio19].
-            FunctionI2C, PullUp: Gp19I2C1Scl,
-            /// PWM Function alias for pin [crate::Pins::gpio19].
-            FunctionPwm, PullNone: Gp19Pwm1B,
-            /// PIO0 Function alias for pin [crate::Pins::gpio19].
-            FunctionPio0, PullNone: Gp19Pio0,
             /// PIO1 Function alias for pin [crate::Pins::gpio19].
-            FunctionPio1, PullNone: Gp19Pio1
+            FunctionPio1, PullNone: DN4
         }
     },
 
-    /// GPIO 20 supports following functions:
-    ///
-    /// | Function     | Alias with applied function |
-    /// |--------------|-----------------------------|
-    /// | `SPI0 RX`    | [crate::Gp20Spi0Rx]         |
-    /// | `UART1 TX`   | [crate::Gp20Uart1Tx]        |
-    /// | `I2C0 SDA`   | [crate::Gp20I2C0Sda]        |
-    /// | `PWM2 A`     | [crate::Gp20Pwm2A]          |
-    /// | `PIO0`       | [crate::Gp20Pio0]           |
-    /// | `PIO1`       | [crate::Gp20Pio1]           |
+    /// GPIO 20 is connected to Line sensor 3 (DN3)
     Gpio20 {
         name: gpio20,
         aliases: {
-            /// UART Function alias for pin [crate::Pins::gpio20].
-            FunctionUart, PullNone: Gp20Uart1Tx,
-            /// SPI Function alias for pin [crate::Pins::gpio20].
-            FunctionSpi, PullNone: Gp20Spi0Rx,
-            /// I2C Function alias for pin [crate::Pins::gpio20].
-            FunctionI2C, PullUp: Gp20I2C0Sda,
-            /// PWM Function alias for pin [crate::Pins::gpio20].
-            FunctionPwm, PullNone: Gp20Pwm2A,
-            /// PIO0 Function alias for pin [crate::Pins::gpio20].
-            FunctionPio0, PullNone: Gp20Pio0,
             /// PIO1 Function alias for pin [crate::Pins::gpio20].
-            FunctionPio1, PullNone: Gp20Pio1
+            FunctionPio1, PullNone: DN3
         }
     },
 
-    /// GPIO 21 supports following functions:
-    ///
-    /// | Function     | Alias with applied function |
-    /// |--------------|-----------------------------|
-    /// | `SPI0 CSn`   | [crate::Gp21Spi0Csn]        |
-    /// | `UART1 RX`   | [crate::Gp21Uart1Rx]        |
-    /// | `I2C0 SCL`   | [crate::Gp21I2C0Scl]        |
-    /// | `PWM2 B`     | [crate::Gp21Pwm2B]          |
-    /// | `PIO0`       | [crate::Gp21Pio0]           |
-    /// | `PIO1`       | [crate::Gp21Pio1]           |
+    /// GPIO 21 is connected to Line sensor 2 (DN2)
     Gpio21 {
         name: gpio21,
         aliases: {
-            /// UART Function alias for pin [crate::Pins::gpio21].
-            FunctionUart, PullNone: Gp21Uart1Rx,
-            /// SPI Function alias for pin [crate::Pins::gpio21].
-            FunctionSpi, PullNone: Gp21Spi0Csn,
-            /// I2C Function alias for pin [crate::Pins::gpio21].
-            FunctionI2C, PullUp: Gp21I2C0Scl,
-            /// PWM Function alias for pin [crate::Pins::gpio21].
-            FunctionPwm, PullNone: Gp21Pwm2B,
-            /// PIO0 Function alias for pin [crate::Pins::gpio21].
-            FunctionPio0, PullNone: Gp21Pio0,
             /// PIO1 Function alias for pin [crate::Pins::gpio21].
-            FunctionPio1, PullNone: Gp21Pio1
+            FunctionPio1, PullNone: DN2
         }
     },
 
-    /// GPIO 22 supports following functions:
-    ///
-    /// | Function     | Alias with applied function |
-    /// |--------------|-----------------------------|
-    /// | `SPI0 SCK`   | [crate::Gp22Spi0Sck]        |
-    /// | `UART1 CTS`  | [crate::Gp22Uart1Cts]       |
-    /// | `I2C1 SDA`   | [crate::Gp22I2C1Sda]        |
-    /// | `PWM3 A`     | [crate::Gp22Pwm3A]          |
-    /// | `PIO0`       | [crate::Gp22Pio0]           |
-    /// | `PIO1`       | [crate::Gp22Pio1]           |
+    /// GPIO 22 is connected to Line sensor 1 (DN1, leftmost)
     Gpio22 {
         name: gpio22,
         aliases: {
-            /// UART Function alias for pin [crate::Pins::gpio22].
-            FunctionUart, PullNone: Gp22Uart1Cts,
-            /// SPI Function alias for pin [crate::Pins::gpio22].
-            FunctionSpi, PullNone: Gp22Spi0Sck,
-            /// I2C Function alias for pin [crate::Pins::gpio22].
-            FunctionI2C, PullUp: Gp22I2C1Sda,
-            /// PWM Function alias for pin [crate::Pins::gpio22].
-            FunctionPwm, PullNone: Gp22Pwm3A,
-            /// PIO0 Function alias for pin [crate::Pins::gpio22].
-            FunctionPio0, PullNone: Gp22Pio0,
             /// PIO1 Function alias for pin [crate::Pins::gpio22].
-            FunctionPio1, PullNone: Gp22Pio1
+            FunctionPio1, PullNone: DN1
         }
     },
 
-    /// GPIO 23 is connected to b_power_save of the Raspberry Pi Pico board.
+    /// GPIO 23 is conntected to Bump sensor emitter control (BE)
     Gpio23 {
-        name: b_power_save,
+        name: gpio23,
+        aliases: {
+            FunctionSioOutput, PullNone: BE
+        }
     },
 
     /// GPIO 24 is connected to vbus_detect of the Raspberry Pi Pico board.
@@ -519,31 +429,12 @@ hal::bsp_pins!(
         name: led,
     },
 
-    /// GPIO 26 supports following functions:
-    ///
-    /// | Function     | Alias with applied function |
-    /// |--------------|-----------------------------|
-    /// | `SPI1 SCK`   | [crate::Gp26Spi1Sck]        |
-    /// | `UART1 CTS`  | [crate::Gp26Uart1Cts]       |
-    /// | `I2C1 SDA`   | [crate::Gp26I2C1Sda]        |
-    /// | `PWM5 A`     | [crate::Gp26Pwm5A]          |
-    /// | `PIO0`       | [crate::Gp26Pio0]           |
-    /// | `PIO1`       | [crate::Gp26Pio1]           |
+    /// GPIO 26 is conntected to Battery level input (VBAT/11) and Line sensor emitter control (DNE)
     Gpio26 {
         name: gpio26,
         aliases: {
-            /// UART Function alias for pin [crate::Pins::gpio26].
-            FunctionUart, PullNone: Gp26Uart1Cts,
-            /// SPI Function alias for pin [crate::Pins::gpio26].
-            FunctionSpi, PullNone: Gp26Spi1Sck,
-            /// I2C Function alias for pin [crate::Pins::gpio26].
-            FunctionI2C, PullUp: Gp26I2C1Sda,
-            /// PWM Function alias for pin [crate::Pins::gpio26].
-            FunctionPwm, PullNone: Gp26Pwm5A,
-            /// PIO0 Function alias for pin [crate::Pins::gpio26].
-            FunctionPio0, PullNone: Gp26Pio0,
-            /// PIO1 Function alias for pin [crate::Pins::gpio26].
-            FunctionPio1, PullNone: Gp26Pio1
+            FunctionSioOutput, PullNone: DNE
+            // ToDo add ADC for VBAT
         }
     },
 
@@ -619,6 +510,7 @@ pub struct ThreePiPlus2040<'a> {
     pub encoder_right: Rx<(pac::PIO0, hal::pio::SM0)>,
     pub encoder_left: Rx<(pac::PIO0, hal::pio::SM1)>,
     pub buzzer: BuzzerPWM,
+    pub ir_sensors: IrSensors,
 }
 
 type ConfiguredI2C0 = I2C<
@@ -638,6 +530,7 @@ impl ThreePiPlus2040<'_> {
         spi0: pac::SPI0,
         i2c0: pac::I2C0,
         pio0: pac::PIO0,
+        pio1: pac::PIO1,
         freq: F,
         system_clock: SystemF,
         resets: &mut pac::RESETS,
@@ -694,6 +587,35 @@ impl ThreePiPlus2040<'_> {
         );
         let encoder_left = init_encoder_pio(encoder_left_a.id().num, sm1, installed);
 
+        // and for the IR sensors
+        let ir_program = pio_proc::pio_file!("src/qtr_sensor_counter.pio");
+        let (mut pio, sm0, _, _, _) = pio1.split(resets);
+
+        let installed = pio.install(&ir_program.program).unwrap();
+
+        let (_dn1, _dn2, _dn3, _dn4, dn5): (DN1, DN2, DN3, DN4, DN5) = (
+            internal_pins.gpio22.reconfigure(),
+            internal_pins.gpio21.reconfigure(),
+            internal_pins.gpio20.reconfigure(),
+            internal_pins.gpio19.reconfigure(),
+            internal_pins.gpio18.reconfigure(),
+        );
+
+        let mut dne: DNE = internal_pins.gpio26.reconfigure();
+
+        dne.set_high().unwrap();
+
+        let (sm, rx, tx) = rp2040_hal::pio::PIOBuilder::from_program(installed)
+            .in_shift_direction(hal::pio::ShiftDirection::Left)
+            .out_shift_direction(hal::pio::ShiftDirection::Right)
+            .push_threshold(16 + 5)
+            .autopush(true)
+            .in_pin_base(dn5.id().num)
+            .out_pins(dn5.id().num, 5)
+            .clock_divisor_fixed_point(15, 160) // 125/(15+160/256) = 8 MHz
+            .build(sm0);
+        let ir_sensors = IrSensors { sm, rx, tx };
+
         Self {
             visual_output,
             magnetometer: lis3mdl,
@@ -702,6 +624,7 @@ impl ThreePiPlus2040<'_> {
             encoder_right,
             encoder_left,
             buzzer: internal_pins.gpio7.reconfigure(),
+            ir_sensors,
         }
     }
 

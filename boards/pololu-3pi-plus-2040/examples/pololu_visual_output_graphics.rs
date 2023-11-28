@@ -49,11 +49,7 @@ use smart_leds::hsv::Hsv;
 use smart_leds::{gamma, hsv::hsv2rgb, SmartLedsWrite, RGB8};
 
 // Abstraction to display graphics and text
-use embedded_graphics::{
-    pixelcolor::BinaryColor,
-    prelude::Point,
-    Drawable,
-};
+use embedded_graphics::{pixelcolor::BinaryColor, prelude::Point, Drawable};
 
 /// Entry point to our bare-metal application.
 ///
@@ -101,6 +97,7 @@ fn main() -> ! {
         pac.SPI0,
         pac.I2C0,
         pac.PIO0,
+        pac.PIO1,
         400_u32.kHz(),
         clocks.system_clock.freq(),
         &mut pac.RESETS,

@@ -96,6 +96,7 @@ fn main() -> ! {
         pac.SPI0,
         pac.I2C0,
         pac.PIO0,
+        pac.PIO1,
         400_u32.kHz(),
         clocks.system_clock.freq(),
         &mut pac.RESETS,
@@ -166,8 +167,7 @@ fn main() -> ! {
 
                 display.flush().unwrap();
                 freq += 10;
-                if freq > 6000
-                {
+                if freq > 6000 {
                     freq = 440;
                 }
                 pololu::buzzer::set_freq(&mut pwm, freq);

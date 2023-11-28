@@ -110,45 +110,32 @@ fn main() -> ! {
     let mut display_refresh_countdown = timer.count_down();
 
     // Two ways of creating duration constants:
-    display_refresh_countdown.start(MicrosDurationU32::millis(1));
+    display_refresh_countdown.start(MicrosDurationU32::millis(500));
 
     let display = mouse.visual_output.as_display(&mut pac.RESETS);
-    let mut encoder_measurement_right_last = 0;
-    let mut encoder_measurement_left_last = 0;
+    let mut ir_sensors = mouse.ir_sensors;
     loop {
+        let mut text = heapless::String::<64>::new();
         if display_refresh_countdown.wait().is_ok() {
-            let mut encoder_measurement_right = 0;
-            // empty the FIFO
-            while let Some(encoder_value) = mouse.encoder_right.read() {
-                encoder_measurement_right = encoder_value as i32;
-            }
-            let mut encoder_measurement_left = 0;
-            // empty the FIFO
-            while let Some(encoder_value) = mouse.encoder_left.read() {
-                encoder_measurement_left = encoder_value as i32;
-            }
-
-            if encoder_measurement_right_last != encoder_measurement_right
-                || encoder_measurement_left_last != encoder_measurement_left
-            {
-                encoder_measurement_right_last = encoder_measurement_right;
-                encoder_measurement_left_last = encoder_measurement_left;
-                // Clear the internal buffer (does nothing to the display yet)
-                display.clear();
-                // Create a text at position (20, 30) and draw it using the previously defined style
-                let mut text = heapless::String::<64>::new();
-                write!(
-                    text,
-                    "Encoder right: {}\nEncoder left:  {}",
-                    encoder_measurement_right, encoder_measurement_left,
-                )
+            let before = timer.get_counter();
+            let (new_ir_sensor, output) = ir_sensors.read(&mut delay);
+            let after = timer.get_counter();
+            write!(text, "dt: {}\n", after - before);
+            ir_sensors = new_ir_sensor;
+            // Clear the internal buffer (does nothing to the display yet)
+            display.clear();
+            // Create a text at position (20, 30) and draw it using the previously defined style
+            write!(
+                text,
+                "{:0>8}\n{:0>8}\n{:0>8}\n{:0>8}\n{:0>8}",
+                output[0], output[1], output[2], output[3], output[4],
+            )
+            .unwrap();
+            Text::new(&text, Point::new(0, 10), style)
+                .draw(display)
                 .unwrap();
-                Text::new(&text, Point::new(0, 32), style)
-                    .draw(display)
-                    .unwrap();
 
-                display.flush().unwrap();
-            }
+            display.flush().unwrap();
         }
     }
 }
