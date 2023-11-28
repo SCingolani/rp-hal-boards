@@ -35,6 +35,7 @@
 //! ```
 
 pub mod visual_output;
+pub mod buzzer;
 
 pub extern crate rp2040_hal as hal;
 
@@ -150,31 +151,12 @@ hal::bsp_pins!(
         }
     },
 
-    /// GPIO 7 supports following functions:
-    ///
-    /// | Function     | Alias with applied function |
-    /// |--------------|-----------------------------|
-    /// | `SPI0 TX`    | [crate::Gp7Spi0Tx]          |
-    /// | `UART1 RTS`  | [crate::Gp7Uart1Rts]        |
-    /// | `I2C1 SCL`   | [crate::Gp7I2C1Scl]         |
-    /// | `PWM3 B`     | [crate::Gp7Pwm3B]           |
-    /// | `PIO0`       | [crate::Gp7Pio0]            |
-    /// | `PIO1`       | [crate::Gp7Pio1]            |
+    /// GPIO 7 is connected to the Buzzer
     Gpio7 {
         name: gpio7,
         aliases: {
-            /// UART Function alias for pin [crate::Pins::gpio7].
-            FunctionUart, PullNone: Gp7Uart1Rts,
-            /// SPI Function alias for pin [crate::Pins::gpio7].
-            FunctionSpi, PullNone: Gp7Spi0Tx,
-            /// I2C Function alias for pin [crate::Pins::gpio7].
-            FunctionI2C, PullUp: Gp7I2C1Scl,
             /// PWM Function alias for pin [crate::Pins::gpio7].
-            FunctionPwm, PullNone: Gp7Pwm3B,
-            /// PIO0 Function alias for pin [crate::Pins::gpio7].
-            FunctionPio0, PullNone: Gp7Pio0,
-            /// PIO1 Function alias for pin [crate::Pins::gpio7].
-            FunctionPio1, PullNone: Gp7Pio1
+            FunctionPwm, PullNone: BuzzerPWM
         }
     },
 
@@ -636,6 +618,7 @@ pub struct ThreePiPlus2040<'a> {
     pub i2c0bus: &'static shared_bus::BusManagerCortexM<ConfiguredI2C0>,
     pub encoder_right: Rx<(pac::PIO0, hal::pio::SM0)>,
     pub encoder_left: Rx<(pac::PIO0, hal::pio::SM1)>,
+    pub buzzer: BuzzerPWM,
 }
 
 type ConfiguredI2C0 = I2C<
@@ -718,6 +701,7 @@ impl ThreePiPlus2040<'_> {
             i2c0bus: i2c0_bus_manager,
             encoder_right,
             encoder_left,
+            buzzer: internal_pins.gpio7.reconfigure(),
         }
     }
 
