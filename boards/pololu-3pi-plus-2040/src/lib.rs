@@ -36,6 +36,7 @@
 
 pub mod buzzer;
 pub mod ir_sensors;
+pub mod motors;
 pub mod visual_output;
 
 pub extern crate rp2040_hal as hal;
@@ -81,6 +82,7 @@ pub use hal::pac;
 use ir_sensors::IrSensors;
 use lis3mdl::Lis3mdl;
 use lsm6dso::Lsm6dso;
+use motors::Motors;
 use visual_output::VisualOutput;
 
 hal::bsp_pins!(
@@ -180,59 +182,19 @@ hal::bsp_pins!(
         }
     },
 
-    /// GPIO 10 supports following functions:
-    ///
-    /// | Function     | Alias with applied function |
-    /// |--------------|-----------------------------|
-    /// | `SPI1 SCK`   | [crate::Gp10Spi1Sck]        |
-    /// | `UART1 CTS`  | [crate::Gp10Uart1Cts]       |
-    /// | `I2C1 SDA`   | [crate::Gp10I2C1Sda]        |
-    /// | `PWM5 A`     | [crate::Gp10Pwm5A]          |
-    /// | `PIO0`       | [crate::Gp10Pio0]           |
-    /// | `PIO1`       | [crate::Gp10Pio1]           |
+    /// GPIO 10 is the direction of the right motor
     Gpio10 {
         name: gpio10,
         aliases: {
-            /// UART Function alias for pin [crate::Pins::gpio10].
-            FunctionUart, PullNone: Gp10Uart1Cts,
-            /// SPI Function alias for pin [crate::Pins::gpio10].
-            FunctionSpi, PullNone: Gp10Spi1Sck,
-            /// I2C Function alias for pin [crate::Pins::gpio10].
-            FunctionI2C, PullUp: Gp10I2C1Sda,
-            /// PWM Function alias for pin [crate::Pins::gpio10].
-            FunctionPwm, PullNone: Gp10Pwm5A,
-            /// PIO0 Function alias for pin [crate::Pins::gpio10].
-            FunctionPio0, PullNone: Gp10Pio0,
-            /// PIO1 Function alias for pin [crate::Pins::gpio10].
-            FunctionPio1, PullNone: Gp10Pio1
+            FunctionSioOutput, PullNone: MotorRightDir
         }
     },
 
-    /// GPIO 11 supports following functions:
-    ///
-    /// | Function     | Alias with applied function |
-    /// |--------------|-----------------------------|
-    /// | `SPI1 TX`    | [crate::Gp11Spi1Tx]         |
-    /// | `UART1 RTS`  | [crate::Gp11Uart1Rts]       |
-    /// | `I2C1 SCL`   | [crate::Gp11I2C1Scl]        |
-    /// | `PWM5 B`     | [crate::Gp11Pwm5B]          |
-    /// | `PIO0`       | [crate::Gp11Pio0]           |
-    /// | `PIO1`       | [crate::Gp11Pio1]           |
+    /// GPIO 11 is the direction of the right motor
     Gpio11 {
         name: gpio11,
         aliases: {
-            /// UART Function alias for pin [crate::Pins::gpio11].
-            FunctionUart, PullNone: Gp11Uart1Rts,
-            /// SPI Function alias for pin [crate::Pins::gpio11].
-            FunctionSpi, PullNone: Gp11Spi1Tx,
-            /// I2C Function alias for pin [crate::Pins::gpio11].
-            FunctionI2C, PullUp: Gp11I2C1Scl,
-            /// PWM Function alias for pin [crate::Pins::gpio11].
-            FunctionPwm, PullNone: Gp11Pwm5B,
-            /// PIO0 Function alias for pin [crate::Pins::gpio11].
-            FunctionPio0, PullNone: Gp11Pio0,
-            /// PIO1 Function alias for pin [crate::Pins::gpio11].
-            FunctionPio1, PullNone: Gp11Pio1
+            FunctionSioOutput, PullNone: MotorLeftDir
         }
     },
 
@@ -254,59 +216,21 @@ hal::bsp_pins!(
         }
     },
 
-    /// GPIO 14 supports following functions:
-    ///
-    /// | Function     | Alias with applied function |
-    /// |--------------|-----------------------------|
-    /// | `SPI1 SCK`   | [crate::Gp14Spi1Sck]        |
-    /// | `UART0 CTS`  | [crate::Gp14Uart0Cts]       |
-    /// | `I2C1 SDA`   | [crate::Gp14I2C1Sda]        |
-    /// | `PWM7 A`     | [crate::Gp14Pwm7A]          |
-    /// | `PIO0`       | [crate::Gp14Pio0]           |
-    /// | `PIO1`       | [crate::Gp14Pio1]           |
+    /// GPIO 14 is connected to the right motor
     Gpio14 {
         name: gpio14,
         aliases: {
-            /// UART Function alias for pin [crate::Pins::gpio14].
-            FunctionUart, PullNone: Gp14Uart0Cts,
-            /// SPI Function alias for pin [crate::Pins::gpio14].
-            FunctionSpi, PullNone: Gp14Spi1Sck,
-            /// I2C Function alias for pin [crate::Pins::gpio14].
-            FunctionI2C, PullUp: Gp14I2C1Sda,
             /// PWM Function alias for pin [crate::Pins::gpio14].
-            FunctionPwm, PullNone: Gp14Pwm7A,
-            /// PIO0 Function alias for pin [crate::Pins::gpio14].
-            FunctionPio0, PullNone: Gp14Pio0,
-            /// PIO1 Function alias for pin [crate::Pins::gpio14].
-            FunctionPio1, PullNone: Gp14Pio1
+            FunctionPwm, PullNone: MotorRightPwm
         }
     },
 
-    /// GPIO 15 supports following functions:
-    ///
-    /// | Function     | Alias with applied function |
-    /// |--------------|-----------------------------|
-    /// | `SPI1 TX`    | [crate::Gp15Spi1Tx]         |
-    /// | `UART0 RTS`  | [crate::Gp15Uart0Rts]       |
-    /// | `I2C1 SCL`   | [crate::Gp15I2C1Scl]        |
-    /// | `PWM7 B`     | [crate::Gp15Pwm7B]          |
-    /// | `PIO0`       | [crate::Gp15Pio0]           |
-    /// | `PIO1`       | [crate::Gp15Pio1]           |
+    /// GPIO 15 is connected to the left motor
     Gpio15 {
         name: gpio15,
         aliases: {
-            /// UART Function alias for pin [crate::Pins::gpio15].
-            FunctionUart, PullNone: Gp15Uart0Rts,
-            /// SPI Function alias for pin [crate::Pins::gpio15].
-            FunctionSpi, PullNone: Gp15Spi1Tx,
-            /// I2C Function alias for pin [crate::Pins::gpio15].
-            FunctionI2C, PullUp: Gp15I2C1Scl,
             /// PWM Function alias for pin [crate::Pins::gpio15].
-            FunctionPwm, PullNone: Gp15Pwm7B,
-            /// PIO0 Function alias for pin [crate::Pins::gpio15].
-            FunctionPio0, PullNone: Gp15Pio0,
-            /// PIO1 Function alias for pin [crate::Pins::gpio15].
-            FunctionPio1, PullNone: Gp15Pio1
+            FunctionPwm, PullNone: MotorLeftPwm
         }
     },
 
@@ -511,6 +435,7 @@ pub struct ThreePiPlus2040<'a> {
     pub encoder_left: Rx<(pac::PIO0, hal::pio::SM1)>,
     pub buzzer: BuzzerPWM,
     pub ir_sensors: IrSensors,
+    pub motors: Motors,
 }
 
 type ConfiguredI2C0 = I2C<
@@ -531,6 +456,7 @@ impl ThreePiPlus2040<'_> {
         i2c0: pac::I2C0,
         pio0: pac::PIO0,
         pio1: pac::PIO1,
+        mut pwm7: hal::pwm::Slice<hal::pwm::Pwm7, hal::pwm::FreeRunning>,
         freq: F,
         system_clock: SystemF,
         resets: &mut pac::RESETS,
@@ -616,6 +542,26 @@ impl ThreePiPlus2040<'_> {
             .build(sm0);
         let ir_sensors = IrSensors { sm, rx, tx };
 
+        let (motor_left, motor_right): (MotorLeftPwm, MotorRightPwm) = (
+            internal_pins.gpio15.reconfigure(),
+            internal_pins.gpio14.reconfigure(),
+        );
+
+        pwm7.default_config();
+        pwm7.set_div_int(10);
+        pwm7.set_top(motors::MAX_SPEED);
+        pwm7.channel_a.output_to(motor_right);
+        pwm7.channel_b.output_to(motor_left);
+        pwm7.enable();
+        // Formula => PWM_Freq = ( F_CPU ) / [ ( TOP + 1 ) * ( DIV + DIV_FRAC/16) ]
+        // ergo, 20.833 kHz
+
+        let motors = Motors {
+            pwm: pwm7,
+            left_dir: internal_pins.gpio11.reconfigure(),
+            right_dir: internal_pins.gpio10.reconfigure(),
+        };
+
         Self {
             visual_output,
             magnetometer: lis3mdl,
@@ -625,6 +571,7 @@ impl ThreePiPlus2040<'_> {
             encoder_left,
             buzzer: internal_pins.gpio7.reconfigure(),
             ir_sensors,
+            motors,
         }
     }
 

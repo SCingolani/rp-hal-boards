@@ -112,34 +112,64 @@ fn main() -> ! {
     // We can have as many `CountDown`s as we want with one timer.
     let timer = hal::Timer::new(pac.TIMER, &mut pac.RESETS, &clocks);
     let mut display_refresh_countdown = timer.count_down();
+    let mut motor_countdown = timer.count_down();
 
     // Two ways of creating duration constants:
-    display_refresh_countdown.start(MicrosDurationU32::millis(500));
+    display_refresh_countdown.start(MicrosDurationU32::millis(100));
+    motor_countdown.start(MicrosDurationU32::millis(25));
 
     let display = mouse.visual_output.as_display(&mut pac.RESETS);
-    let mut ir_sensors = mouse.ir_sensors;
+
+    let mut speed: i32 = 0;
+    let mut dir = true;
     loop {
-        let mut text = heapless::String::<64>::new();
         if display_refresh_countdown.wait().is_ok() {
-            let before = timer.get_counter();
-            let (new_ir_sensor, output) = ir_sensors.read(&mut delay);
-            let after = timer.get_counter();
-            write!(text, "dt: {}\n", after - before);
-            ir_sensors = new_ir_sensor;
+            let mut encoder_measurement_right = 0;
+            // empty the FIFO
+            while let Some(encoder_value) = mouse.encoder_right.read() {
+                encoder_measurement_right = encoder_value as i32;
+            }
+            let mut encoder_measurement_left = 0;
+            // empty the FIFO
+            while let Some(encoder_value) = mouse.encoder_left.read() {
+                encoder_measurement_left = encoder_value as i32;
+            }
+
             // Clear the internal buffer (does nothing to the display yet)
             display.clear();
             // Create a text at position (20, 30) and draw it using the previously defined style
+            let mut text = heapless::String::<64>::new();
             write!(
                 text,
-                "{:0>8}\n{:0>8}\n{:0>8}\n{:0>8}\n{:0>8}",
-                output[0], output[1], output[2], output[3], output[4],
+                "Encoder right: {}\nEncoder left:  {}\n Speed: {}",
+                encoder_measurement_right, encoder_measurement_left, speed
             )
             .unwrap();
-            Text::new(&text, Point::new(0, 10), style)
+            Text::new(&text, Point::new(0, 32), style)
                 .draw(display)
                 .unwrap();
 
             display.flush().unwrap();
+        }
+        if motor_countdown.wait().is_ok() {
+            mouse.motors.set_speeds(speed, speed);
+            if dir {
+                speed = speed.saturating_add(200);
+                if speed > pololu::motors::MAX_SPEED as i32 / 4 {
+                    speed = pololu::motors::MAX_SPEED as i32 / 4;
+                    dir = false;
+                }
+            } else {
+                speed = speed.saturating_sub(200);
+                if speed < -(pololu::motors::MAX_SPEED as i32 / 4) {
+                    speed = -(pololu::motors::MAX_SPEED as i32 / 4);
+                    mouse.motors.set_speeds(speed, speed);
+                    dir = true;
+                }
+            }
+            if speed == 0 {
+                delay.delay_ms(250);
+            }
         }
     }
 }

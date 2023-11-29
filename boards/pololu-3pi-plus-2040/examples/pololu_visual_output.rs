@@ -94,6 +94,9 @@ fn main() -> ! {
     // milliseconds). It is needed for the display driver since it has to wait for the display to initialize.
     let mut delay = cortex_m::delay::Delay::new(core.SYST, clocks.system_clock.freq().to_Hz());
 
+    // Init PWMs
+    let pwm_slices = hal::pwm::Slices::new(pac.PWM, &mut pac.RESETS);
+
     // The main instance of our board support devices.
     let mut mouse = pololu::ThreePiPlus2040::new(
         pac.IO_BANK0,
@@ -103,6 +106,7 @@ fn main() -> ! {
         pac.I2C0,
         pac.PIO0,
         pac.PIO1,
+        pwm_slices.pwm7,
         400_u32.kHz(),
         clocks.system_clock.freq(),
         &mut pac.RESETS,
