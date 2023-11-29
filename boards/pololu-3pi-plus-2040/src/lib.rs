@@ -44,7 +44,7 @@ pub extern crate rp2040_hal as hal;
 #[cfg(feature = "rt")]
 extern crate cortex_m_rt;
 
-use embedded_hal::blocking::delay::DelayMs;
+use embedded_hal::{blocking::delay::DelayMs, digital::v2::InputPin};
 use fugit::HertzU32;
 /// The `entry` macro declares the starting function to the linker.
 /// This is similar to the `main` function in console applications.
@@ -305,22 +305,28 @@ hal::bsp_pins!(
         }
     },
 
-    /// GPIO 24 is connected to vbus_detect of the Raspberry Pi Pico board.
+    /// GPIO 24 is available for the user as a GPIO
     Gpio24 {
-        name: vbus_detect,
+        name: gpio24,
     },
 
-    /// GPIO 25 is connected to led of the Raspberry Pi Pico board.
+    /// GPIO 25 is connected to the yellow LED and Button A
     Gpio25 {
-        name: led,
+        name: gpio25,
+        aliases: {
+            /// Input Function alias for Yellow LED.
+            FunctionSioOutput, PullNone: YellowLed,
+            /// Input Function alias for ButtonA.
+            FunctionSioInput, PullNone: ButtonA
+        }
     },
 
     /// GPIO 26 is conntected to Battery level input (VBAT/11) and Line sensor emitter control (DNE)
     Gpio26 {
         name: gpio26,
         aliases: {
-            FunctionSioOutput, PullNone: DNE
-            // ToDo add ADC for VBAT
+            FunctionSioOutput, PullNone: DNE,
+            FunctionNull, PullNone: BatteryLevel
         }
     },
 
@@ -336,20 +342,6 @@ hal::bsp_pins!(
     /// | `PIO1`       | [crate::Gp27Pio1]           |
     Gpio27 {
         name: gpio27,
-        aliases: {
-            /// UART Function alias for pin [crate::Pins::gpio27].
-            FunctionUart, PullNone: Gp27Uart1Rts,
-            /// SPI Function alias for pin [crate::Pins::gpio27].
-            FunctionSpi, PullNone: Gp27Spi1Tx,
-            /// I2C Function alias for pin [crate::Pins::gpio27].
-            FunctionI2C, PullUp: Gp27I2C1Scl,
-            /// PWM Function alias for pin [crate::Pins::gpio27].
-            FunctionPwm, PullNone: Gp27Pwm5B,
-            /// PIO0 Function alias for pin [crate::Pins::gpio27].
-            FunctionPio0, PullNone: Gp27Pio0,
-            /// PIO1 Function alias for pin [crate::Pins::gpio27].
-            FunctionPio1, PullNone: Gp27Pio1
-        }
     },
 
     /// GPIO 28 supports following functions:
@@ -364,26 +356,21 @@ hal::bsp_pins!(
     /// | `PIO1`       | [crate::Gp28Pio1]           |
     Gpio28 {
         name: gpio28,
-        aliases: {
-            /// UART Function alias for pin [crate::Pins::gpio28].
-            FunctionUart, PullNone: Gp28Uart0Tx,
-            /// SPI Function alias for pin [crate::Pins::gpio28].
-            FunctionSpi, PullNone: Gp28Spi1Rx,
-            /// I2C Function alias for pin [crate::Pins::gpio28].
-            FunctionI2C, PullUp: Gp28I2C0Sda,
-            /// PWM Function alias for pin [crate::Pins::gpio28].
-            FunctionPwm, PullNone: Gp28Pwm6A,
-            /// PIO0 Function alias for pin [crate::Pins::gpio28].
-            FunctionPio0, PullNone: Gp28Pio0,
-            /// PIO1 Function alias for pin [crate::Pins::gpio28].
-            FunctionPio1, PullNone: Gp28Pio1
-        }
     },
 
-    /// GPIO 29 is connected to voltage_monitor of the Raspberry Pi Pico board.
+    /// GPIO 29 supports following functions:
+    ///
+    /// | Function     | Alias with applied function |
+    /// |--------------|-----------------------------|
+    /// | `SPI1 RX`    | [crate::Gp29Spi1CSn]         |
+    /// | `UART0 TX`   | [crate::Gp29Uart0Rx]        |
+    /// | `I2C0 SDA`   | [crate::Gp29I2C0Scl]        |
+    /// | `PWM6 A`     | [crate::Gp29Pwm6B]          |
+    /// | `PIO0`       | [crate::Gp29Pio0]           |
+    /// | `PIO1`       | [crate::Gp29Pio1]           |
     Gpio29 {
-        name: voltage_monitor,
-    },
+        name: gpio29,
+    }
 );
 
 pub const XOSC_CRYSTAL_FREQ: u32 = 12_000_000;
@@ -398,6 +385,8 @@ pub struct ThreePiPlus2040<'a> {
     pub buzzer: BuzzerPWM,
     pub ir_sensors: IrSensors<16>,
     pub motors: Motors,
+    pub button_a: ButtonA,
+    // pub button_b: hal::gpio::Pin<QspiSs, FunctionSioInput, PullUp>,
 }
 
 type ConfiguredI2C0 = I2C<
@@ -414,6 +403,9 @@ impl ThreePiPlus2040<'_> {
         io: pac::IO_BANK0,
         pads: pac::PADS_BANK0,
         sio: hal::sio::SioGpioBank0,
+        // qspi_io: pac::IO_QSPI,
+        // qspi_pads: pac::PADS_QSPI,
+        // qspi_sio: hal::sio::SioGpioQspi,
         spi0: pac::SPI0,
         i2c0: pac::I2C0,
         pio0: pac::PIO0,
@@ -430,6 +422,7 @@ impl ThreePiPlus2040<'_> {
         SystemF: Into<HertzU32>,
     {
         let internal_pins = Pins::new(io, pads, sio, resets);
+        // let qspi_pins = hal::gpio::qspi::Pins::new(qspi_io, qspi_pads, qspi_sio, resets);
         let visual_output = VisualOutput::new(
             spi0,
             internal_pins.gpio3.reconfigure(),
@@ -514,6 +507,8 @@ impl ThreePiPlus2040<'_> {
             right_dir: internal_pins.gpio10.reconfigure(),
         };
 
+        let button_a = internal_pins.gpio25.reconfigure();
+
         Self {
             visual_output,
             magnetometer: lis3mdl,
@@ -524,11 +519,21 @@ impl ThreePiPlus2040<'_> {
             buzzer: internal_pins.gpio7.reconfigure(),
             ir_sensors,
             motors,
+            button_a,
+            // button_b: qspi_pins.qspi_ss.reconfigure(),
         }
     }
 
-    pub fn is_button_c_pressed(&mut self) -> bool {
-        self.visual_output.read_gpio0()
+    pub fn button_a(&self) -> bool {
+        !self.button_a.is_high().unwrap()
+    }
+
+    // pub fn button_b(&self) -> bool {
+    //     !self.button_b.is_high().unwrap()
+    // }
+
+    pub fn button_c(&mut self) -> bool {
+        !self.visual_output.read_gpio0()
     }
 }
 

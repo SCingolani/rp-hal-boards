@@ -132,6 +132,7 @@ fn main() -> ! {
         let now = timer.get_counter();
 
         if display_refresh_countdown.wait().is_ok() {
+            let (button_a, button_c) = (mouse.button_a(), mouse.button_c());
             // Get a reference to the Display driver; it is mutually exclusive with the RGB LED!
             // Switching from Display to RGB and vice versa incurs a small cost
             let display = mouse.visual_output.as_display(&mut pac.RESETS);
@@ -141,8 +142,19 @@ fn main() -> ! {
 
             // Create a text at position (20, 30) and draw it using the previously defined style
             let mut text = heapless::String::<64>::new();
-            write!(text, "Hellow from rust!\nnow: {}", now).unwrap();
-            Text::new(&text, Point::new(0, 32), style)
+            write!(text, "Hello from rust!\nnow: {}", now).unwrap();
+            Text::new(&text, Point::new(0, 10), style)
+                .draw(display)
+                .unwrap();
+
+            text.clear();
+            write!(
+                text,
+                "Button A: {}\nButton B: unimplemented\nButton C: {}",
+                button_a, button_c
+            )
+            .unwrap();
+            Text::new(&text, Point::new(0, 33), style)
                 .draw(display)
                 .unwrap();
 
