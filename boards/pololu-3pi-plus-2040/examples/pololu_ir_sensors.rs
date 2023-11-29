@@ -10,6 +10,11 @@
 #![no_std]
 #![no_main]
 
+use embedded_graphics::geometry::Size;
+use embedded_graphics::primitives::Primitive;
+use embedded_graphics::primitives::PrimitiveStyleBuilder;
+use embedded_graphics::primitives::Rectangle;
+use embedded_graphics::primitives::RoundedRectangle;
 use fugit::MicrosDurationU32;
 use fugit::RateExtU32;
 
@@ -38,13 +43,7 @@ use pololu::hal;
 use embedded_hal::timer::CountDown;
 
 // Abstraction to display graphics and text
-use embedded_graphics::{
-    mono_font::{ascii::FONT_6X10, MonoTextStyle},
-    pixelcolor::BinaryColor,
-    prelude::Point,
-    text::Text,
-    Drawable,
-};
+use embedded_graphics::{pixelcolor::BinaryColor, prelude::Point, Drawable};
 
 // Formatted strings:
 use core::fmt::Write;
@@ -106,38 +105,66 @@ fn main() -> ! {
         &mut delay,
     );
 
-    // Create a new character style
-    let style = MonoTextStyle::new(&FONT_6X10, BinaryColor::On);
-
     // We can have as many `CountDown`s as we want with one timer.
     let timer = hal::Timer::new(pac.TIMER, &mut pac.RESETS, &clocks);
     let mut display_refresh_countdown = timer.count_down();
 
     // Two ways of creating duration constants:
-    display_refresh_countdown.start(MicrosDurationU32::millis(500));
+    display_refresh_countdown.start(MicrosDurationU32::millis(20));
 
     let display = mouse.visual_output.as_display(&mut pac.RESETS);
     let mut ir_sensors = mouse.ir_sensors;
+
+    let gfx_stroke = PrimitiveStyleBuilder::new()
+        .stroke_width(2)
+        .stroke_color(BinaryColor::On)
+        .fill_color(BinaryColor::Off)
+        .build();
+    let gfx_fill = PrimitiveStyleBuilder::new()
+        .fill_color(BinaryColor::On)
+        .build();
+
+    const SPACING: u32 = 20;
+    const PADDING: u32 = 3;
+    let left_margin: u32 = (display.get_dimensions().0 as u32 - SPACING * 5) / 2;
+    let height = (display.get_dimensions().1 - 10) as u32;
     loop {
         let mut text = heapless::String::<64>::new();
         if display_refresh_countdown.wait().is_ok() {
             let before = timer.get_counter();
-            let (new_ir_sensor, output) = ir_sensors.read(&mut delay);
+            let output = ir_sensors.measure_downward_facing(&mut delay);
             let after = timer.get_counter();
-            write!(text, "dt: {}\n", after - before);
-            ir_sensors = new_ir_sensor;
+            write!(text, "dt: {}\n", after - before).unwrap();
             // Clear the internal buffer (does nothing to the display yet)
             display.clear();
-            // Create a text at position (20, 30) and draw it using the previously defined style
-            write!(
-                text,
-                "{:0>8}\n{:0>8}\n{:0>8}\n{:0>8}\n{:0>8}",
-                output[0], output[1], output[2], output[3], output[4],
-            )
-            .unwrap();
-            Text::new(&text, Point::new(0, 10), style)
+
+            for i in 0..5_u32 {
+                RoundedRectangle::with_equal_corners(
+                    Rectangle::new(
+                        Point::new((left_margin + SPACING * i + PADDING) as i32, 5),
+                        Size::new(SPACING - PADDING * 2, height),
+                    ),
+                    Size::new(3, 3),
+                )
+                .into_styled(gfx_stroke)
                 .draw(display)
                 .unwrap();
+                Rectangle::new(
+                    Point::new((left_margin + SPACING * i + PADDING) as i32, 5),
+                    Size::new(
+                        SPACING - PADDING * 2,
+                        height * (output[i as usize] as u32)
+                            / (pololu::ir_sensors::MAX_VALUE as u32),
+                    ),
+                )
+                .into_styled(gfx_fill)
+                .draw(display)
+                .unwrap();
+            }
+
+            // Text::new(&text, Point::new(0, 10), style)
+            //     .draw(display)
+            //     .unwrap();
 
             display.flush().unwrap();
         }

@@ -44,7 +44,7 @@ pub extern crate rp2040_hal as hal;
 #[cfg(feature = "rt")]
 extern crate cortex_m_rt;
 
-use embedded_hal::{blocking::delay::DelayMs, digital::v2::OutputPin};
+use embedded_hal::blocking::delay::DelayMs;
 use fugit::HertzU32;
 /// The `entry` macro declares the starting function to the linker.
 /// This is similar to the `main` function in console applications.
@@ -234,59 +234,21 @@ hal::bsp_pins!(
         }
     },
 
-    /// GPIO 16 supports following functions:
-    ///
-    /// | Function     | Alias with applied function |
-    /// |--------------|-----------------------------|
-    /// | `SPI0 RX`    | [crate::Gp16Spi0Rx]         |
-    /// | `UART0 TX`   | [crate::Gp16Uart0Tx]        |
-    /// | `I2C0 SDA`   | [crate::Gp16I2C0Sda]        |
-    /// | `PWM0 A`     | [crate::Gp16Pwm0A]          |
-    /// | `PIO0`       | [crate::Gp16Pio0]           |
-    /// | `PIO1`       | [crate::Gp16Pio1]           |
+    /// GPIO 16 is connected to the right bumper sensor
     Gpio16 {
         name: gpio16,
         aliases: {
-            /// UART Function alias for pin [crate::Pins::gpio16].
-            FunctionUart, PullNone: Gp16Uart0Tx,
-            /// SPI Function alias for pin [crate::Pins::gpio16].
-            FunctionSpi, PullNone: Gp16Spi0Rx,
-            /// I2C Function alias for pin [crate::Pins::gpio16].
-            FunctionI2C, PullUp: Gp16I2C0Sda,
-            /// PWM Function alias for pin [crate::Pins::gpio16].
-            FunctionPwm, PullNone: Gp16Pwm0A,
-            /// PIO0 Function alias for pin [crate::Pins::gpio16].
-            FunctionPio0, PullNone: Gp16Pio0,
             /// PIO1 Function alias for pin [crate::Pins::gpio16].
-            FunctionPio1, PullNone: Gp16Pio1
+            FunctionPio1, PullNone: BR
         }
     },
 
-    /// GPIO 17 supports following functions:
-    ///
-    /// | Function     | Alias with applied function |
-    /// |--------------|-----------------------------|
-    /// | `SPI0 CSn`   | [crate::Gp17Spi0Csn]        |
-    /// | `UART0 RX`   | [crate::Gp17Uart0Rx]        |
-    /// | `I2C0 SCL`   | [crate::Gp17I2C0Scl]        |
-    /// | `PWM0 B`     | [crate::Gp17Pwm0B]          |
-    /// | `PIO0`       | [crate::Gp17Pio0]           |
-    /// | `PIO1`       | [crate::Gp17Pio1]           |
+    /// GPIO 17 is connected to the left bumper sensor
     Gpio17 {
         name: gpio17,
         aliases: {
-            /// UART Function alias for pin [crate::Pins::gpio17].
-            FunctionUart, PullNone: Gp17Uart0Rx,
-            /// SPI Function alias for pin [crate::Pins::gpio17].
-            FunctionSpi, PullNone: Gp17Spi0Csn,
-            /// I2C Function alias for pin [crate::Pins::gpio17].
-            FunctionI2C, PullUp: Gp17I2C0Scl,
-            /// PWM Function alias for pin [crate::Pins::gpio17].
-            FunctionPwm, PullNone: Gp17Pwm0B,
-            /// PIO0 Function alias for pin [crate::Pins::gpio17].
-            FunctionPio0, PullNone: Gp17Pio0,
             /// PIO1 Function alias for pin [crate::Pins::gpio17].
-            FunctionPio1, PullNone: Gp17Pio1
+            FunctionPio1, PullNone: BL
         }
     },
 
@@ -434,7 +396,7 @@ pub struct ThreePiPlus2040<'a> {
     pub encoder_right: Rx<(pac::PIO0, hal::pio::SM0)>,
     pub encoder_left: Rx<(pac::PIO0, hal::pio::SM1)>,
     pub buzzer: BuzzerPWM,
-    pub ir_sensors: IrSensors,
+    pub ir_sensors: IrSensors<16>,
     pub motors: Motors,
 }
 
@@ -514,33 +476,23 @@ impl ThreePiPlus2040<'_> {
         let encoder_left = init_encoder_pio(encoder_left_a.id().num, sm1, installed);
 
         // and for the IR sensors
-        let ir_program = pio_proc::pio_file!("src/qtr_sensor_counter.pio");
-        let (mut pio, sm0, _, _, _) = pio1.split(resets);
+        let (pio, sm0, _, _, _) = pio1.split(resets);
 
-        let installed = pio.install(&ir_program.program).unwrap();
-
-        let (_dn1, _dn2, _dn3, _dn4, dn5): (DN1, DN2, DN3, DN4, DN5) = (
-            internal_pins.gpio22.reconfigure(),
-            internal_pins.gpio21.reconfigure(),
-            internal_pins.gpio20.reconfigure(),
-            internal_pins.gpio19.reconfigure(),
-            internal_pins.gpio18.reconfigure(),
+        let ir_sensors = IrSensors::new(
+            (
+                internal_pins.gpio17.reconfigure(),
+                internal_pins.gpio16.reconfigure(),
+                internal_pins.gpio22.reconfigure(),
+                internal_pins.gpio21.reconfigure(),
+                internal_pins.gpio20.reconfigure(),
+                internal_pins.gpio19.reconfigure(),
+                internal_pins.gpio18.reconfigure(),
+                internal_pins.gpio26.reconfigure(),
+                internal_pins.gpio23.reconfigure(),
+            ),
+            pio,
+            sm0,
         );
-
-        let mut dne: DNE = internal_pins.gpio26.reconfigure();
-
-        dne.set_high().unwrap();
-
-        let (sm, rx, tx) = rp2040_hal::pio::PIOBuilder::from_program(installed)
-            .in_shift_direction(hal::pio::ShiftDirection::Left)
-            .out_shift_direction(hal::pio::ShiftDirection::Right)
-            .push_threshold(16 + 5)
-            .autopush(true)
-            .in_pin_base(dn5.id().num)
-            .out_pins(dn5.id().num, 5)
-            .clock_divisor_fixed_point(15, 160) // 125/(15+160/256) = 8 MHz
-            .build(sm0);
-        let ir_sensors = IrSensors { sm, rx, tx };
 
         let (motor_left, motor_right): (MotorLeftPwm, MotorRightPwm) = (
             internal_pins.gpio15.reconfigure(),
